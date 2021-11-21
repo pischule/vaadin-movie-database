@@ -2,10 +2,7 @@ package bsu.pischule.csab.imdb.views;
 
 import bsu.pischule.csab.imdb.views.about.AboutView;
 import bsu.pischule.csab.imdb.views.films.FilmsView;
-import bsu.pischule.csab.imdb.views.filmshistory.FilmsHistoryView;
 import bsu.pischule.csab.imdb.views.names.NamesView;
-import bsu.pischule.csab.imdb.views.nameshistory.NamesHistoryView;
-import bsu.pischule.csab.imdb.views.namesnew.NamesNewView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
@@ -20,8 +17,10 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.html.UnorderedList;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.RouterLink;
-import java.util.ArrayList;
+
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * The main view is a top-level placeholder for other views.
@@ -29,38 +28,30 @@ import java.util.List;
 @PageTitle("Main")
 public class MainLayout extends AppLayout {
 
-    public static class MenuItemInfo {
-
-        private String text;
-        private String iconClass;
-        private Class<? extends Component> view;
-
-        public MenuItemInfo(String text, String iconClass, Class<? extends Component> view) {
-            this.text = text;
-            this.iconClass = iconClass;
-            this.view = view;
-        }
-
-        public String getText() {
-            return text;
-        }
-
-        public String getIconClass() {
-            return iconClass;
-        }
-
-        public Class<? extends Component> getView() {
-            return view;
-        }
-
-    }
-
     private H1 viewTitle;
 
     public MainLayout() {
         setPrimarySection(Section.DRAWER);
         addToNavbar(true, createHeaderContent());
         addToDrawer(createDrawerContent());
+    }
+
+    private static RouterLink createLink(MenuItemInfo menuItemInfo) {
+        RouterLink link = new RouterLink();
+        link.addClassNames("flex", "mx-s", "p-s", "relative", "text-secondary");
+        link.setRoute(menuItemInfo.getView());
+
+        Span icon = new Span();
+        icon.addClassNames("me-s", "text-l");
+        if (!menuItemInfo.getIconClass().isEmpty()) {
+            icon.addClassNames(menuItemInfo.getIconClass());
+        }
+
+        Span text = new Span(menuItemInfo.getText());
+        text.addClassNames("font-medium", "text-s");
+
+        link.add(icon, text);
+        return link;
     }
 
     private Component createHeaderContent() {
@@ -106,44 +97,13 @@ public class MainLayout extends AppLayout {
     }
 
     private List<RouterLink> createLinks() {
-        MenuItemInfo[] menuItems = new MenuItemInfo[]{ //
-                new MenuItemInfo("Films", "la la-film", FilmsView.class), //
-
-                new MenuItemInfo("Names", "la la-user", NamesView.class), //
-
-                new MenuItemInfo("About", "la la-question-circle", AboutView.class), //
-
-                new MenuItemInfo("Names New", "la la-user", NamesNewView.class), //
-
-                new MenuItemInfo("Films History", "la la-history", FilmsHistoryView.class), //
-
-                new MenuItemInfo("Names History", "la la-history", NamesHistoryView.class), //
-
-        };
-        List<RouterLink> links = new ArrayList<>();
-        for (MenuItemInfo menuItemInfo : menuItems) {
-            links.add(createLink(menuItemInfo));
-
-        }
-        return links;
-    }
-
-    private static RouterLink createLink(MenuItemInfo menuItemInfo) {
-        RouterLink link = new RouterLink();
-        link.addClassNames("flex", "mx-s", "p-s", "relative", "text-secondary");
-        link.setRoute(menuItemInfo.getView());
-
-        Span icon = new Span();
-        icon.addClassNames("me-s", "text-l");
-        if (!menuItemInfo.getIconClass().isEmpty()) {
-            icon.addClassNames(menuItemInfo.getIconClass());
-        }
-
-        Span text = new Span(menuItemInfo.getText());
-        text.addClassNames("font-medium", "text-s");
-
-        link.add(icon, text);
-        return link;
+        return Stream.of(
+                        new MenuItemInfo("Фильмы", "la la-film", FilmsView.class), //
+                        new MenuItemInfo("Люди", "la la-user", NamesView.class), //
+                        new MenuItemInfo("Автор", "la la-question-circle", AboutView.class)
+                )
+                .map(MainLayout::createLink)
+                .collect(Collectors.toList());
     }
 
     private Footer createFooter() {
@@ -162,5 +122,31 @@ public class MainLayout extends AppLayout {
     private String getCurrentPageTitle() {
         PageTitle title = getContent().getClass().getAnnotation(PageTitle.class);
         return title == null ? "" : title.value();
+    }
+
+    public static class MenuItemInfo {
+
+        private final String text;
+        private final String iconClass;
+        private final Class<? extends Component> view;
+
+        public MenuItemInfo(String text, String iconClass, Class<? extends Component> view) {
+            this.text = text;
+            this.iconClass = iconClass;
+            this.view = view;
+        }
+
+        public String getText() {
+            return text;
+        }
+
+        public String getIconClass() {
+            return iconClass;
+        }
+
+        public Class<? extends Component> getView() {
+            return view;
+        }
+
     }
 }

@@ -1,10 +1,14 @@
 package bsu.pischule.csab.imdb.views.films;
 
-import bsu.pischule.csab.imdb.data.entity.SampleBook;
-import bsu.pischule.csab.imdb.data.service.SampleBookService;
+import bsu.pischule.csab.imdb.data.entity.Film;
+import bsu.pischule.csab.imdb.data.entity.Name;
+import bsu.pischule.csab.imdb.data.service.FilmService;
+import bsu.pischule.csab.imdb.data.service.NameService;
 import bsu.pischule.csab.imdb.views.MainLayout;
+import com.vaadin.componentfactory.MultipleSelect;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.HasStyle;
+import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -13,62 +17,64 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Image;
-import com.vaadin.flow.component.html.Label;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.component.textfield.*;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
-import com.vaadin.flow.data.converter.StringToIntegerConverter;
-import com.vaadin.flow.data.renderer.TemplateRenderer;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
 import com.vaadin.flow.spring.data.VaadinSpringDataHelpers;
-import elemental.json.Json;
-import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.web.util.UriUtils;
 
-@PageTitle("Films")
-@Route(value = "films/:sampleBookID?/:action?(edit)", layout = MainLayout.class)
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import static bsu.pischule.csab.imdb.config.AppConfig.APP_LOCALE;
+import static bsu.pischule.csab.imdb.config.AppConfig.DATE_TIME_FORMATTER;
+
+@PageTitle("Фильмы")
+@Route(value = "films/:filmID?/:action?(edit)", layout = MainLayout.class)
 @RouteAlias(value = "", layout = MainLayout.class)
 public class FilmsView extends Div implements BeforeEnterObserver {
 
-    private final String SAMPLEBOOK_ID = "sampleBookID";
-    private final String SAMPLEBOOK_EDIT_ROUTE_TEMPLATE = "films/%d/edit";
+    private final String FILM_ID = "filmID";
+    private final String FILM_EDIT_ROUTE_TEMPLATE = "films/%d/edit";
 
-    private Grid<SampleBook> grid = new Grid<>(SampleBook.class, false);
+    private final Grid<Film> grid = new Grid<>(Film.class, false);
 
-    private Upload image;
-    private Image imagePreview;
     private TextField name;
-    private TextField author;
-    private DatePicker publicationDate;
-    private TextField pages;
-    private TextField isbn;
+    private Select<Name> director;
+    private IntegerField duration;
+    private TextArea description;
+    private NumberField rating;
+    private DatePicker releaseDate;
+    private MultipleSelect<Name> actors;
 
-    private Button cancel = new Button("Cancel");
-    private Button save = new Button("Save");
+    private final Button cancel = new Button("Отмена");
+    private final Button save = new Button("Сохранить");
+    private final Button delete = new Button("Удалить");
 
-    private BeanValidationBinder<SampleBook> binder;
+    private final BeanValidationBinder<Film> binder;
 
-    private SampleBook sampleBook;
+    private Film film;
 
-    private SampleBookService sampleBookService;
+    private final FilmService filmService;
+    private final NameService nameService;
 
-    public FilmsView(@Autowired SampleBookService sampleBookService) {
-        this.sampleBookService = sampleBookService;
-        addClassNames("films-view", "flex", "flex-col", "h-full");
+    public FilmsView(FilmService filmService, NameService nameService) {
+        this.filmService = filmService;
+        this.nameService = nameService;
+        addClassNames("names-view", "flex", "flex-col", "h-full");
 
         // Create UI
         SplitLayout splitLayout = new SplitLayout();
@@ -80,18 +86,16 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         add(splitLayout);
 
         // Configure Grid
-        TemplateRenderer<SampleBook> imageRenderer = TemplateRenderer
-                .<SampleBook>of("<img style='height: 64px' src='[[item.image]]' />")
-                .withProperty("image", SampleBook::getImage);
-        grid.addColumn(imageRenderer).setHeader("Image").setWidth("68px").setFlexGrow(0);
+        grid.addColumn("name").setHeader("Название");
+        grid.addColumn(FilmsView::formatDirectorName).setHeader("Режиссер");
+        grid.addColumn("description").setHeader("Описание");
+        grid.addColumn("duration").setHeader("Продолжительность");
+        grid.addColumn(FilmsView::formatReleaseDate).setHeader("Дата выхода");
+        grid.addColumn(FilmsView::formatRating).setHeader("Рейтинг");
+        grid.addColumn(FilmsView::formatActors).setHeader("Актеры");
 
-        grid.addColumn("name").setAutoWidth(true);
-        grid.addColumn("author").setAutoWidth(true);
-        grid.addColumn("publicationDate").setAutoWidth(true);
-        grid.addColumn("pages").setAutoWidth(true);
-        grid.addColumn("isbn").setAutoWidth(true);
-        grid.setItems(query -> sampleBookService.list(
-                PageRequest.of(query.getPage(), query.getPageSize(), VaadinSpringDataHelpers.toSpringDataSort(query)))
+        grid.setItems(query -> filmService.list(
+                        PageRequest.of(query.getPage(), query.getPageSize(), VaadinSpringDataHelpers.toSpringDataSort(query)))
                 .stream());
         grid.addThemeVariants(GridVariant.LUMO_NO_BORDER);
         grid.setHeightFull();
@@ -99,7 +103,7 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         // when a row is selected or deselected, populate form
         grid.asSingleSelect().addValueChangeListener(event -> {
             if (event.getValue() != null) {
-                UI.getCurrent().navigate(String.format(SAMPLEBOOK_EDIT_ROUTE_TEMPLATE, event.getValue().getId()));
+                UI.getCurrent().navigate(String.format(FILM_EDIT_ROUTE_TEMPLATE, event.getValue().getId()));
             } else {
                 clearForm();
                 UI.getCurrent().navigate(FilmsView.class);
@@ -107,14 +111,11 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         });
 
         // Configure Form
-        binder = new BeanValidationBinder<>(SampleBook.class);
+        binder = new BeanValidationBinder<>(Film.class);
 
         // Bind fields. This where you'd define e.g. validation rules
-        binder.forField(pages).withConverter(new StringToIntegerConverter("Only numbers are allowed")).bind("pages");
 
         binder.bindInstanceFields(this);
-
-        attachImageUpload(image, imagePreview);
 
         cancel.addClickListener(e -> {
             clearForm();
@@ -123,34 +124,73 @@ public class FilmsView extends Div implements BeforeEnterObserver {
 
         save.addClickListener(e -> {
             try {
-                if (this.sampleBook == null) {
-                    this.sampleBook = new SampleBook();
+                if (this.film == null) {
+                    this.film = new Film();
                 }
-                binder.writeBean(this.sampleBook);
-                this.sampleBook.setImage(imagePreview.getSrc());
+                binder.writeBean(this.film);
 
-                sampleBookService.update(this.sampleBook);
+                filmService.update(this.film);
                 clearForm();
                 refreshGrid();
-                Notification.show("SampleBook details stored.");
+                Notification.show("Запись о фильме сохранена.");
                 UI.getCurrent().navigate(FilmsView.class);
             } catch (ValidationException validationException) {
-                Notification.show("An exception happened while trying to store the sampleBook details.");
+                Notification.show("Произошла ошибка при попытке сохранить фильм");
             }
         });
 
+        delete.addClickListener(e -> {
+            try {
+                Optional.ofNullable(film)
+                        .map(Film::getId)
+                        .ifPresent(filmService::delete);
+                clearForm();
+                refreshGrid();
+                Notification.show("Фильм удален.");
+            } catch (DataIntegrityViolationException error) {
+                Notification.show("Невозможно удалить фильм, так как он используется в других записях.");
+            }
+
+        });
+    }
+
+    private static String formatReleaseDate(Film film) {
+        return Optional.ofNullable(film.getReleaseDate())
+                .map(date -> date.format(DATE_TIME_FORMATTER))
+                .orElse(null);
+    }
+
+    private static Object formatDirectorName(Film film) {
+        return Optional.ofNullable(film.getDirector())
+                .map(Name::getFullName)
+                .orElse(null);
+    }
+
+    private static Object formatActors(Film film) {
+        return film.getActors().stream()
+                .map(Name::getFullName)
+                .filter(Objects::nonNull)
+                .sorted()
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String formatRating(Film film) {
+        return Optional.ofNullable(film.getRating())
+                .map(rating -> "%.1f".formatted(film.getRating()))
+                .orElse(null);
     }
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        Optional<Integer> sampleBookId = event.getRouteParameters().getInteger(SAMPLEBOOK_ID);
-        if (sampleBookId.isPresent()) {
-            Optional<SampleBook> sampleBookFromBackend = sampleBookService.get(sampleBookId.get());
-            if (sampleBookFromBackend.isPresent()) {
-                populateForm(sampleBookFromBackend.get());
+        Optional<Integer> samplFilmId = event.getRouteParameters().getInteger(FILM_ID);
+        if (samplFilmId.isPresent()) {
+            Optional<Film> samplePersonFromBackend = filmService.get(samplFilmId.get());
+            if (samplePersonFromBackend.isPresent()) {
+                populateForm(samplePersonFromBackend.get());
             } else {
-                Notification.show(String.format("The requested sampleBook was not found, ID = %d", sampleBookId.get()),
-                        3000, Notification.Position.BOTTOM_START);
+                Notification.show(
+                        String.format("Запрашиваемый фильм не найден, ID = %d", samplFilmId.get()), 3000,
+                        Notification.Position.BOTTOM_START);
                 // when a row is selected but the data is no longer available,
                 // refresh grid
                 refreshGrid();
@@ -169,18 +209,37 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         editorLayoutDiv.add(editorDiv);
 
         FormLayout formLayout = new FormLayout();
-        Label imageLabel = new Label("Image");
-        imagePreview = new Image();
-        imagePreview.setWidth("100%");
-        image = new Upload();
-        image.getStyle().set("box-sizing", "border-box");
-        image.getElement().appendChild(imagePreview.getElement());
-        name = new TextField("Name");
-        author = new TextField("Author");
-        publicationDate = new DatePicker("Publication Date");
-        pages = new TextField("Pages");
-        isbn = new TextField("Isbn");
-        Component[] fields = new Component[]{imageLabel, image, name, author, publicationDate, pages, isbn};
+        name = new TextField("Название");
+        duration = new IntegerField("Продолжительность (мин)");
+        director = new Select<>();
+        director.setLabel("Режиссер");
+        director.setItems(nameService.list(Pageable.unpaged()).getContent());
+        director.setItemLabelGenerator(Name::getFullName);
+        description = new TextArea("Описание");
+        rating = new NumberField("Рейтинг");
+        rating.setStep(0.1);
+        rating.addValueChangeListener(e -> {
+            if (rating.getValue() != null) {
+                rating.setValue(Math.round(rating.getValue() * 10) / 10.0);
+            }
+        });
+        releaseDate = new DatePicker("Дата выхода");
+        releaseDate.setLocale(APP_LOCALE);
+        actors = new MultipleSelect<>();
+        actors.setItems(nameService.list(Pageable.unpaged()).getContent());
+        actors.setItemLabelGenerator(Name::getFullName);
+        actors.setLabel("Актеры");
+
+
+        Component[] fields = new Component[]{
+                name,
+                director,
+                duration,
+                description,
+                rating,
+                releaseDate,
+                actors
+        };
 
         for (Component field : fields) {
             ((HasStyle) field).addClassName("full-width");
@@ -194,11 +253,16 @@ public class FilmsView extends Div implements BeforeEnterObserver {
 
     private void createButtonLayout(Div editorLayoutDiv) {
         HorizontalLayout buttonLayout = new HorizontalLayout();
-        buttonLayout.setClassName("w-full flex-wrap bg-contrast-5 py-s px-l");
+        buttonLayout.setClassName("w-full flex-wrap bg-contrast-5 py-s px-s");
         buttonLayout.setSpacing(true);
         cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        cancel.addClickShortcut(Key.ESCAPE);
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        buttonLayout.add(save, cancel);
+        save.addClickShortcut(Key.ENTER);
+        delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        delete.addClickShortcut(Key.BACKSPACE);
+        delete.addClickShortcut(Key.DELETE);
+        buttonLayout.add(save, cancel, delete);
         editorLayoutDiv.add(buttonLayout);
     }
 
@@ -210,24 +274,6 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         wrapper.add(grid);
     }
 
-    private void attachImageUpload(Upload upload, Image preview) {
-        ByteArrayOutputStream uploadBuffer = new ByteArrayOutputStream();
-        upload.setAcceptedFileTypes("image/*");
-        upload.setReceiver((fileName, mimeType) -> {
-            return uploadBuffer;
-        });
-        upload.addSucceededListener(e -> {
-            String mimeType = e.getMIMEType();
-            String base64ImageData = Base64.getEncoder().encodeToString(uploadBuffer.toByteArray());
-            String dataUrl = "data:" + mimeType + ";base64,"
-                    + UriUtils.encodeQuery(base64ImageData, StandardCharsets.UTF_8);
-            upload.getElement().setPropertyJson("files", Json.createArray());
-            preview.setSrc(dataUrl);
-            uploadBuffer.reset();
-        });
-        preview.setVisible(false);
-    }
-
     private void refreshGrid() {
         grid.select(null);
         grid.getLazyDataView().refreshAll();
@@ -237,15 +283,9 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         populateForm(null);
     }
 
-    private void populateForm(SampleBook value) {
-        this.sampleBook = value;
-        binder.readBean(this.sampleBook);
-        this.imagePreview.setVisible(value != null);
-        if (value == null) {
-            this.imagePreview.setSrc("");
-        } else {
-            this.imagePreview.setSrc(value.getImage());
-        }
+    private void populateForm(Film value) {
+        this.film = value;
+        binder.readBean(this.film);
 
     }
 }

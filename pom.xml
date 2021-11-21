@@ -97,7 +97,17 @@
             <artifactId>exampledata</artifactId>
             <version>4.1.0</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.vaadin.componentfactory</groupId>
+            <artifactId>multiple-select</artifactId>
+            <version>3.0.1  </version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.3.1</version>
+        </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
@@ -144,6 +154,10 @@
             <artifactId>webdrivermanager</artifactId>
             <version>5.0.3</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
         </dependency>
     </dependencies>
 

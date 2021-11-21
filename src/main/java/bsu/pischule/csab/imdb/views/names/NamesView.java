@@ -1,14 +1,14 @@
 package bsu.pischule.csab.imdb.views.names;
 
-import bsu.pischule.csab.imdb.data.entity.SamplePerson;
-import bsu.pischule.csab.imdb.data.service.SamplePersonService;
+import bsu.pischule.csab.imdb.data.entity.Name;
+import bsu.pischule.csab.imdb.data.service.NameService;
 import bsu.pischule.csab.imdb.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.HasStyle;
+import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -19,48 +19,49 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
-import com.vaadin.flow.data.renderer.TemplateRenderer;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.data.VaadinSpringDataHelpers;
+
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 
-@PageTitle("Names")
-@Route(value = "names/:samplePersonID?/:action?(edit)", layout = MainLayout.class)
+import static bsu.pischule.csab.imdb.config.AppConfig.APP_LOCALE;
+import static bsu.pischule.csab.imdb.config.AppConfig.DATE_TIME_FORMATTER;
+
+@PageTitle("Люди")
+@Route(value = "names/:nameID?/:action?(edit)", layout = MainLayout.class)
 @Uses(Icon.class)
 public class NamesView extends Div implements BeforeEnterObserver {
 
-    private final String SAMPLEPERSON_ID = "samplePersonID";
-    private final String SAMPLEPERSON_EDIT_ROUTE_TEMPLATE = "names/%d/edit";
+    private final String NAME_ID = "nameID";
+    private final String NAME_EDIT_ROUTE_TEMPLATE = "names/%d/edit";
 
-    private Grid<SamplePerson> grid = new Grid<>(SamplePerson.class, false);
-
+    private final Grid<Name> grid = new Grid<>(Name.class, false);
+    private final Button cancel = new Button("Отмена");
+    private final Button save = new Button("Сохранить");
+    private final Button delete = new Button("Удалить");
+    private final BeanValidationBinder<Name> binder;
+    private final NameService nameService;
     private TextField firstName;
     private TextField lastName;
-    private TextField email;
-    private TextField phone;
     private DatePicker dateOfBirth;
-    private TextField occupation;
-    private Checkbox important;
+    private DatePicker dateOfDeath;
+    private NumberField height;
+    private IntegerField numberOfChildren;
+    private Name name;
 
-    private Button cancel = new Button("Cancel");
-    private Button save = new Button("Save");
-
-    private BeanValidationBinder<SamplePerson> binder;
-
-    private SamplePerson samplePerson;
-
-    private SamplePersonService samplePersonService;
-
-    public NamesView(@Autowired SamplePersonService samplePersonService) {
-        this.samplePersonService = samplePersonService;
+    public NamesView(NameService nameService) {
+        this.nameService = nameService;
         addClassNames("names-view", "flex", "flex-col", "h-full");
 
         // Create UI
@@ -73,27 +74,22 @@ public class NamesView extends Div implements BeforeEnterObserver {
         add(splitLayout);
 
         // Configure Grid
-        grid.addColumn("firstName").setAutoWidth(true);
-        grid.addColumn("lastName").setAutoWidth(true);
-        grid.addColumn("email").setAutoWidth(true);
-        grid.addColumn("phone").setAutoWidth(true);
-        grid.addColumn("dateOfBirth").setAutoWidth(true);
-        grid.addColumn("occupation").setAutoWidth(true);
-        TemplateRenderer<SamplePerson> importantRenderer = TemplateRenderer.<SamplePerson>of(
-                "<vaadin-icon hidden='[[!item.important]]' icon='vaadin:check' style='width: var(--lumo-icon-size-s); height: var(--lumo-icon-size-s); color: var(--lumo-primary-text-color);'></vaadin-icon><vaadin-icon hidden='[[item.important]]' icon='vaadin:minus' style='width: var(--lumo-icon-size-s); height: var(--lumo-icon-size-s); color: var(--lumo-disabled-text-color);'></vaadin-icon>")
-                .withProperty("important", SamplePerson::isImportant);
-        grid.addColumn(importantRenderer).setHeader("Important").setAutoWidth(true);
-
-        grid.setItems(query -> samplePersonService.list(
-                PageRequest.of(query.getPage(), query.getPageSize(), VaadinSpringDataHelpers.toSpringDataSort(query)))
-                .stream());
+        grid.addColumn(Name::getFullName).setHeader("Имя");
+        grid.addColumn(NamesView::formatDateOfBirth).setHeader("Дата рождения");
+        grid.addColumn(NamesView::formatDateOfDeath).setHeader("Дата смерти");
+        grid.addColumn(NamesView::formatHeight).setHeader("Рост");
+        grid.addColumn("numberOfChildren").setHeader("Количество детей");
+        grid.setItems(query ->
+                nameService.list(
+                                PageRequest.of(query.getPage(), query.getPageSize(), VaadinSpringDataHelpers.toSpringDataSort(query)))
+                        .stream());
         grid.addThemeVariants(GridVariant.LUMO_NO_BORDER);
         grid.setHeightFull();
 
         // when a row is selected or deselected, populate form
         grid.asSingleSelect().addValueChangeListener(event -> {
             if (event.getValue() != null) {
-                UI.getCurrent().navigate(String.format(SAMPLEPERSON_EDIT_ROUTE_TEMPLATE, event.getValue().getId()));
+                UI.getCurrent().navigate(String.format(NAME_EDIT_ROUTE_TEMPLATE, event.getValue().getId()));
             } else {
                 clearForm();
                 UI.getCurrent().navigate(NamesView.class);
@@ -101,7 +97,7 @@ public class NamesView extends Div implements BeforeEnterObserver {
         });
 
         // Configure Form
-        binder = new BeanValidationBinder<>(SamplePerson.class);
+        binder = new BeanValidationBinder<>(Name.class);
 
         // Bind fields. This where you'd define e.g. validation rules
 
@@ -114,33 +110,66 @@ public class NamesView extends Div implements BeforeEnterObserver {
 
         save.addClickListener(e -> {
             try {
-                if (this.samplePerson == null) {
-                    this.samplePerson = new SamplePerson();
+                if (this.name == null) {
+                    this.name = new Name();
                 }
-                binder.writeBean(this.samplePerson);
+                binder.writeBean(this.name);
 
-                samplePersonService.update(this.samplePerson);
+                nameService.update(this.name);
                 clearForm();
                 refreshGrid();
-                Notification.show("SamplePerson details stored.");
+                Notification.show("Запись о человеке сохранена.");
                 UI.getCurrent().navigate(NamesView.class);
             } catch (ValidationException validationException) {
-                Notification.show("An exception happened while trying to store the samplePerson details.");
+                Notification.show("Произошла ошибка при попытке сохранения записи о человеке");
             }
+        });
+
+
+        delete.addClickListener(e -> {
+            try {
+                Optional.ofNullable(name)
+                        .map(Name::getId)
+                        .ifPresent(nameService::delete);
+                clearForm();
+                refreshGrid();
+                Notification.show("Запись о человеке удалена");
+            } catch (DataIntegrityViolationException error) {
+                Notification.show("Невозможно удалить запись о человеке, так как она используется в других таблицах");
+            }
+
         });
 
     }
 
+    private static String formatDateOfBirth(Name name) {
+        return Optional.ofNullable(name.getDateOfBirth())
+                .map(date -> date.format(DATE_TIME_FORMATTER))
+                .orElse(null);
+    }
+
+    private static String formatDateOfDeath(Name name) {
+        return Optional.ofNullable(name.getDateOfDeath())
+                .map(date -> date.format(DATE_TIME_FORMATTER))
+                .orElse(null);
+    }
+
+    private static String formatHeight(Name name) {
+        return Optional.ofNullable(name.getHeight())
+                .map("%.2f"::formatted)
+                .orElse(null);
+    }
+
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        Optional<Integer> samplePersonId = event.getRouteParameters().getInteger(SAMPLEPERSON_ID);
+        Optional<Integer> samplePersonId = event.getRouteParameters().getInteger(NAME_ID);
         if (samplePersonId.isPresent()) {
-            Optional<SamplePerson> samplePersonFromBackend = samplePersonService.get(samplePersonId.get());
+            Optional<Name> samplePersonFromBackend = nameService.get(samplePersonId.get());
             if (samplePersonFromBackend.isPresent()) {
                 populateForm(samplePersonFromBackend.get());
             } else {
                 Notification.show(
-                        String.format("The requested samplePerson was not found, ID = %d", samplePersonId.get()), 3000,
+                        String.format("Запрошенный человек не найден, ID = %d", samplePersonId.get()), 3000,
                         Notification.Position.BOTTOM_START);
                 // when a row is selected but the data is no longer available,
                 // refresh grid
@@ -160,15 +189,23 @@ public class NamesView extends Div implements BeforeEnterObserver {
         editorLayoutDiv.add(editorDiv);
 
         FormLayout formLayout = new FormLayout();
-        firstName = new TextField("First Name");
-        lastName = new TextField("Last Name");
-        email = new TextField("Email");
-        phone = new TextField("Phone");
-        dateOfBirth = new DatePicker("Date Of Birth");
-        occupation = new TextField("Occupation");
-        important = new Checkbox("Important");
-        important.getStyle().set("padding-top", "var(--lumo-space-m)");
-        Component[] fields = new Component[]{firstName, lastName, email, phone, dateOfBirth, occupation, important};
+        firstName = new TextField("Имя");
+        lastName = new TextField("Фамилия");
+        dateOfBirth = new DatePicker("Дата рождения", e -> dateOfDeath.setMin(e.getValue()));
+        dateOfBirth.setLocale(APP_LOCALE);
+        dateOfDeath = new DatePicker("Дата смерти", e -> dateOfBirth.setMax(e.getValue()));
+        dateOfDeath.setLocale(APP_LOCALE);
+        height = new NumberField("Рост");
+        height.setStep(0.01);
+        height.addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                height.setValue(Math.round(e.getValue() * 100) / 100.0);
+            }
+        });
+        numberOfChildren = new IntegerField("Количество детей");
+        numberOfChildren.setHasControls(true);
+        Component[] fields = new Component[]{
+                firstName, lastName, dateOfBirth, dateOfDeath, height, numberOfChildren};
 
         for (Component field : fields) {
             ((HasStyle) field).addClassName("full-width");
@@ -182,11 +219,16 @@ public class NamesView extends Div implements BeforeEnterObserver {
 
     private void createButtonLayout(Div editorLayoutDiv) {
         HorizontalLayout buttonLayout = new HorizontalLayout();
-        buttonLayout.setClassName("w-full flex-wrap bg-contrast-5 py-s px-l");
+        buttonLayout.setClassName("w-full flex-wrap bg-contrast-5 py-s px-s");
         buttonLayout.setSpacing(true);
         cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        cancel.addClickShortcut(Key.ESCAPE);
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        buttonLayout.add(save, cancel);
+        save.addClickShortcut(Key.ENTER);
+        delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        delete.addClickShortcut(Key.BACKSPACE);
+        delete.addClickShortcut(Key.DELETE);
+        buttonLayout.add(save, cancel, delete);
         editorLayoutDiv.add(buttonLayout);
     }
 
@@ -207,9 +249,8 @@ public class NamesView extends Div implements BeforeEnterObserver {
         populateForm(null);
     }
 
-    private void populateForm(SamplePerson value) {
-        this.samplePerson = value;
-        binder.readBean(this.samplePerson);
-
+    private void populateForm(Name value) {
+        this.name = value;
+        binder.readBean(this.name);
     }
 }
