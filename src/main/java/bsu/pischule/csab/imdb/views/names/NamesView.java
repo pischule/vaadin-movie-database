@@ -222,12 +222,8 @@ public class NamesView extends Div implements BeforeEnterObserver {
         buttonLayout.setClassName("w-full flex-wrap bg-contrast-5 py-s px-s");
         buttonLayout.setSpacing(true);
         cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        cancel.addClickShortcut(Key.ESCAPE);
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        save.addClickShortcut(Key.ENTER);
         delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        delete.addClickShortcut(Key.BACKSPACE);
-        delete.addClickShortcut(Key.DELETE);
         buttonLayout.add(save, cancel, delete);
         editorLayoutDiv.add(buttonLayout);
     }
