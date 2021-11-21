@@ -48,7 +48,7 @@ public class DataGenerator {
 
             logger.info("... generating 100 Sample Book entities...");
             ExampleDataGenerator<Film> sampleBookRepositoryGenerator = new ExampleDataGenerator<>(
-                    Film.class, LocalDateTime.of(2021, 11, 20, 0, 0, 0));
+                    Film.class, LocalDateTime.of(2021, 11, 21, 0, 0, 0));
             sampleBookRepositoryGenerator.setData(Film::setId, DataType.ID);
             sampleBookRepositoryGenerator.setData(Film::setName, DataType.BOOK_TITLE);
             sampleBookRepositoryGenerator.setData(Film::setRating, new DataType<>() {
