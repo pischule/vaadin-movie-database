@@ -1,5 +1,10 @@
 # Movie Database
 
+![image](https://user-images.githubusercontent.com/41614960/142773865-6be8c470-5a6a-4b62-b0ef-77017030362e.png)
+
+![image](https://user-images.githubusercontent.com/41614960/142773877-57688ae7-f855-4c4a-868a-7735cfc2d12f.png)
+
+
 This project can be used as a starting point to create your own Vaadin application with Spring Boot.
 It contains all the necessary configuration and some placeholder files to get you started.
 
