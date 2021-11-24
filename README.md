@@ -1,12 +1,9 @@
 # Movie Database
 
-![image](https://user-images.githubusercontent.com/41614960/142773865-6be8c470-5a6a-4b62-b0ef-77017030362e.png)
+![image](https://user-images.githubusercontent.com/41614960/143312945-5098d0e5-4213-4ba0-b1c7-c03095e495f3.png)
 
-![image](https://user-images.githubusercontent.com/41614960/142773877-57688ae7-f855-4c4a-868a-7735cfc2d12f.png)
+![image](https://user-images.githubusercontent.com/41614960/143313067-dbd7f825-9d6e-4247-9093-bc1d4cbf7e60.png)
 
-
-This project can be used as a starting point to create your own Vaadin application with Spring Boot.
-It contains all the necessary configuration and some placeholder files to get you started.
 
 ## Running the application
 
@@ -36,16 +33,3 @@ Once the JAR file is built, you can run it using
 - `views` package in `src/main/java` contains the server-side Java views of your application.
 - `views` folder in `frontend/` contains the client-side JavaScript views of your application.
 - `themes` folder in `frontend/` contains the custom CSS styles.
-
-## Useful links
-
-- Read the documentation at [vaadin.com/docs](https://vaadin.com/docs).
-- Follow the tutorials at [vaadin.com/tutorials](https://vaadin.com/tutorials).
-- Watch training videos and get certified at [vaadin.com/learn/training](https://vaadin.com/learn/training).
-- Create new projects at [start.vaadin.com](https://start.vaadin.com/).
-- Search UI components and their usage examples at [vaadin.com/components](https://vaadin.com/components).
-- Discover Vaadin's set of CSS utility classes that enable building any UI without custom CSS in the [docs](https://vaadin.com/docs/latest/ds/foundation/utility-classes). 
-- Find a collection of solutions to common use cases in [Vaadin Cookbook](https://cookbook.vaadin.com/).
-- Find Add-ons at [vaadin.com/directory](https://vaadin.com/directory).
-- Ask questions on [Stack Overflow](https://stackoverflow.com/questions/tagged/vaadin) or join our [Discord channel](https://discord.gg/MYFq5RTbBn).
-- Report issues, create pull requests in [GitHub](https://github.com/vaadin/platform).
