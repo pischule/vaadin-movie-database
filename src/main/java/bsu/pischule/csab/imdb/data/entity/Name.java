@@ -10,8 +10,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.Entity;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.*;
 
 @Getter
 @Setter
@@ -25,9 +24,9 @@ public class Name extends AbstractEntity {
     private String lastName;
     private LocalDate dateOfBirth;
     private LocalDate dateOfDeath;
-    @Min(0)
+    @DecimalMin("0.00") @DecimalMax("2.72")
     private Double height;
-    @Min(0)
+    @Min(0) @Max(100)
     private Integer numberOfChildren;
 
     public String getFullName() {

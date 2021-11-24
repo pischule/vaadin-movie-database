@@ -24,6 +24,8 @@ import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.textfield.*;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.data.renderer.LocalDateRenderer;
+import com.vaadin.flow.data.renderer.NumberRenderer;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -39,8 +41,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import static bsu.pischule.csab.imdb.config.AppConfig.APP_LOCALE;
-import static bsu.pischule.csab.imdb.config.AppConfig.DATE_TIME_FORMATTER;
+import static bsu.pischule.csab.imdb.config.AppConfig.*;
 
 @PageTitle("Фильмы")
 @Route(value = "films/:filmID?/:action?(edit)", layout = MainLayout.class)
@@ -87,11 +88,11 @@ public class FilmsView extends Div implements BeforeEnterObserver {
 
         // Configure Grid
         grid.addColumn("name").setHeader("Название");
-        grid.addColumn(FilmsView::formatDirectorName).setHeader("Режиссер");
+        grid.addColumn(FilmsView::formatDirectorName).setSortProperty("director.firstName", "director.lastName").setHeader("Режиссер");
         grid.addColumn("description").setHeader("Описание");
         grid.addColumn("duration").setHeader("Продолжительность");
-        grid.addColumn(FilmsView::formatReleaseDate).setHeader("Дата выхода");
-        grid.addColumn(FilmsView::formatRating).setHeader("Рейтинг");
+        grid.addColumn(new LocalDateRenderer<>(Film::getReleaseDate, DATE_FORMAT)).setSortProperty("releaseDate").setHeader("Дата выхода");
+        grid.addColumn(new NumberRenderer<>(Film::getRating, "%.1f")).setSortProperty("rating").setHeader("Рейтинг");
         grid.addColumn(FilmsView::formatActors).setHeader("Актеры");
 
         grid.setItems(query -> filmService.list(
@@ -99,6 +100,7 @@ public class FilmsView extends Div implements BeforeEnterObserver {
                 .stream());
         grid.addThemeVariants(GridVariant.LUMO_NO_BORDER);
         grid.setHeightFull();
+        grid.setMultiSort(true);
 
         // when a row is selected or deselected, populate form
         grid.asSingleSelect().addValueChangeListener(event -> {
@@ -154,12 +156,6 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         });
     }
 
-    private static String formatReleaseDate(Film film) {
-        return Optional.ofNullable(film.getReleaseDate())
-                .map(date -> date.format(DATE_TIME_FORMATTER))
-                .orElse(null);
-    }
-
     private static Object formatDirectorName(Film film) {
         return Optional.ofNullable(film.getDirector())
                 .map(Name::getFullName)
@@ -172,12 +168,6 @@ public class FilmsView extends Div implements BeforeEnterObserver {
                 .filter(Objects::nonNull)
                 .sorted()
                 .collect(Collectors.joining(", "));
-    }
-
-    private static String formatRating(Film film) {
-        return Optional.ofNullable(film.getRating())
-                .map(rating -> "%.1f".formatted(film.getRating()))
-                .orElse(null);
     }
 
     @Override

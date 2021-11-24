@@ -5,7 +5,6 @@ import bsu.pischule.csab.imdb.data.service.NameService;
 import bsu.pischule.csab.imdb.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.HasStyle;
-import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -24,6 +23,8 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.data.renderer.LocalDateRenderer;
+import com.vaadin.flow.data.renderer.NumberRenderer;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -35,8 +36,7 @@ import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 
-import static bsu.pischule.csab.imdb.config.AppConfig.APP_LOCALE;
-import static bsu.pischule.csab.imdb.config.AppConfig.DATE_TIME_FORMATTER;
+import static bsu.pischule.csab.imdb.config.AppConfig.*;
 
 @PageTitle("Люди")
 @Route(value = "names/:nameID?/:action?(edit)", layout = MainLayout.class)
@@ -74,10 +74,11 @@ public class NamesView extends Div implements BeforeEnterObserver {
         add(splitLayout);
 
         // Configure Grid
-        grid.addColumn(Name::getFullName).setHeader("Имя");
-        grid.addColumn(NamesView::formatDateOfBirth).setHeader("Дата рождения");
-        grid.addColumn(NamesView::formatDateOfDeath).setHeader("Дата смерти");
-        grid.addColumn(NamesView::formatHeight).setHeader("Рост");
+        grid.addColumn("firstName").setHeader("Имя");
+        grid.addColumn("lastName").setHeader("Фамилия");
+        grid.addColumn(new LocalDateRenderer<>(Name::getDateOfBirth, DATE_FORMAT)).setSortProperty("dateOfBirth").setHeader("Дата рождения");
+        grid.addColumn(new LocalDateRenderer<>(Name::getDateOfDeath, DATE_FORMAT)).setSortProperty("dateOfDeath").setHeader("Дата смерти");
+        grid.addColumn(new NumberRenderer<>(Name::getHeight, "%.2f")).setSortProperty("height").setHeader("Рост");
         grid.addColumn("numberOfChildren").setHeader("Количество детей");
         grid.setItems(query ->
                 nameService.list(
@@ -85,6 +86,7 @@ public class NamesView extends Div implements BeforeEnterObserver {
                         .stream());
         grid.addThemeVariants(GridVariant.LUMO_NO_BORDER);
         grid.setHeightFull();
+        grid.setMultiSort(true);
 
         // when a row is selected or deselected, populate form
         grid.asSingleSelect().addValueChangeListener(event -> {
@@ -140,24 +142,6 @@ public class NamesView extends Div implements BeforeEnterObserver {
 
         });
 
-    }
-
-    private static String formatDateOfBirth(Name name) {
-        return Optional.ofNullable(name.getDateOfBirth())
-                .map(date -> date.format(DATE_TIME_FORMATTER))
-                .orElse(null);
-    }
-
-    private static String formatDateOfDeath(Name name) {
-        return Optional.ofNullable(name.getDateOfDeath())
-                .map(date -> date.format(DATE_TIME_FORMATTER))
-                .orElse(null);
-    }
-
-    private static String formatHeight(Name name) {
-        return Optional.ofNullable(name.getHeight())
-                .map("%.2f"::formatted)
-                .orElse(null);
     }
 
     @Override
