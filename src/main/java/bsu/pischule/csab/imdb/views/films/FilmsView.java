@@ -97,7 +97,8 @@ public class FilmsView extends Div implements BeforeEnterObserver {
 
         grid.setItems(query -> filmService.list(
                         PageRequest.of(query.getPage(), query.getPageSize(), VaadinSpringDataHelpers.toSpringDataSort(query)))
-                .stream());
+                .stream()
+                .filter(it -> !it.getDeleted()));
         grid.addThemeVariants(GridVariant.LUMO_NO_BORDER);
         grid.setHeightFull();
         grid.setMultiSort(true);

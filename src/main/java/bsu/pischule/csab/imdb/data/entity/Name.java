@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.SQLDelete;
 
 import java.time.LocalDate;
 import java.util.Objects;
@@ -16,6 +17,7 @@ import javax.validation.constraints.*;
 @Setter
 @ToString
 @RequiredArgsConstructor
+@SQLDelete(sql = "UPDATE name SET deleted = true WHERE id=?")
 @Entity
 public class Name extends AbstractEntity {
     @NotEmpty
@@ -28,6 +30,7 @@ public class Name extends AbstractEntity {
     private Double height;
     @Min(0) @Max(100)
     private Integer numberOfChildren;
+    private Boolean deleted = Boolean.FALSE;
 
     public String getFullName() {
         return Stream.of(firstName, lastName)

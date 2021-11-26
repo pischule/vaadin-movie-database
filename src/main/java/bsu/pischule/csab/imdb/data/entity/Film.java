@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.SQLDelete;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,6 +18,7 @@ import javax.validation.constraints.NotEmpty;
 @Setter
 @ToString
 @RequiredArgsConstructor
+@SQLDelete(sql = "UPDATE film SET deleted = true WHERE id=?")
 @Entity
 public class Film extends AbstractEntity {
     @NotEmpty
@@ -33,4 +35,5 @@ public class Film extends AbstractEntity {
     @ManyToMany(fetch = FetchType.EAGER)
     @ToString.Exclude
     private Set<Name> actors;
+    private Boolean deleted = Boolean.FALSE;
 }

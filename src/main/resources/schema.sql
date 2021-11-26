@@ -31,3 +31,6 @@ create table if not exists film_actors
     foreign key (film_id) references film (id),
     foreign key (actors_id) references name (id)
 );
+
+alter table film add column if not exists deleted boolean default false;
+alter table name add column if not exists deleted boolean default false;
