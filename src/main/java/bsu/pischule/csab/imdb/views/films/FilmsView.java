@@ -8,7 +8,6 @@ import bsu.pischule.csab.imdb.views.MainLayout;
 import com.vaadin.componentfactory.MultipleSelect;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.HasStyle;
-import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -21,27 +20,26 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
-import com.vaadin.flow.component.textfield.*;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.renderer.LocalDateRenderer;
 import com.vaadin.flow.data.renderer.NumberRenderer;
-import com.vaadin.flow.router.BeforeEnterEvent;
-import com.vaadin.flow.router.BeforeEnterObserver;
-import com.vaadin.flow.router.PageTitle;
-import com.vaadin.flow.router.Route;
-import com.vaadin.flow.router.RouteAlias;
+import com.vaadin.flow.router.*;
 import com.vaadin.flow.spring.data.VaadinSpringDataHelpers;
-
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import static bsu.pischule.csab.imdb.config.AppConfig.*;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static bsu.pischule.csab.imdb.config.AppConfig.APP_LOCALE;
+import static bsu.pischule.csab.imdb.config.AppConfig.DATE_FORMAT;
 
 @PageTitle("Фильмы")
 @Route(value = "films/:filmID?/:action?(edit)", layout = MainLayout.class)
@@ -217,9 +215,12 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         releaseDate = new DatePicker("Дата выхода");
         releaseDate.setLocale(APP_LOCALE);
         actors = new MultipleSelect<>();
-        actors.setItems(nameService.list(Pageable.unpaged()).getContent());
+        actors.setItems();
         actors.setItemLabelGenerator(Name::getFullName);
         actors.setLabel("Актеры");
+
+        this.actors.setItems(getActorsAvailable(null));
+        this.director.setItems(getDirectorAvailable(null));
 
 
         Component[] fields = new Component[]{
@@ -266,13 +267,42 @@ public class FilmsView extends Div implements BeforeEnterObserver {
         grid.getLazyDataView().refreshAll();
     }
 
+    private List<Name> getDirectorAvailable(Film film) {
+        return Stream.concat(
+                        Optional.ofNullable(film).map(Film::getDirector).stream(),
+                        nameService.list(Pageable.unpaged()).getContent()
+                                .stream()
+                                .filter(it -> !it.getDeleted())
+                ).distinct()
+                .sorted(Comparator.comparing(Name::getFullName, String::compareTo))
+                .collect(Collectors.toList());
+    }
+
+    private List<Name> getActorsAvailable(Film film) {
+        return Stream.concat(
+                        Optional.ofNullable(film).map(Film::getActors).stream().flatMap(Collection::stream),
+                        nameService.list(Pageable.unpaged()).getContent()
+                                .stream()
+                                .filter(it -> !it.getDeleted())
+                ).distinct()
+                .sorted(Comparator.comparing(Name::getFullName, String::compareTo))
+                .collect(Collectors.toList());
+    }
+
     private void clearForm() {
         populateForm(null);
     }
 
     private void populateForm(Film value) {
         this.film = value;
+        this.actors.setItems(getActorsAvailable(value));
+        this.director.setItems(getDirectorAvailable(value));
+        Optional.ofNullable(value)
+                .map(Film::getActors)
+                .ifPresent(actors::setValue);
+        Optional.ofNullable(value)
+                .map(Film::getDirector)
+                .ifPresent(director::setValue);
         binder.readBean(this.film);
-
     }
 }
